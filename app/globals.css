@@ -55,6 +55,31 @@
   .focus-ring {
     @apply outline-none ring-0 transition focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+
+  .hero-motion-scene {
+    contain: layout paint;
+  }
+
+  .hero-motion-scene canvas {
+    display: block;
+    filter: drop-shadow(0 26px 34px rgba(15, 23, 42, 0.16));
+  }
+
+  .motion-card-3d {
+    transform-style: preserve-3d;
+    transition:
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      transform 260ms ease;
+    will-change: transform;
+  }
+
+  .motion-card-3d:hover,
+  .motion-card-3d:focus-within {
+    border-color: rgba(20, 184, 166, 0.36);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+    transform: perspective(920px) rotateX(1.8deg) rotateY(-1.4deg) translateY(-4px);
+  }
 }
 
 @layer utilities {
@@ -69,5 +94,14 @@
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-card-3d,
+  .motion-card-3d:hover,
+  .motion-card-3d:focus-within {
+    transform: none;
+    transition: none;
   }
 }

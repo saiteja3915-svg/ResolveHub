@@ -45,7 +45,7 @@ import {
   X,
   Zap
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 type Priority = "High" | "Medium" | "Low";
 type Status = "New" | "Assigned" | "In Progress" | "Resolved";
@@ -1220,6 +1220,251 @@ function ActionToast({
   );
 }
 
+function HeroMotionScene({
+  className,
+  testId = "hero-3d-scene"
+}: {
+  className?: string;
+  testId?: string;
+}) {
+  const sceneRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const mount = sceneRef.current;
+
+    if (!mount) {
+      return;
+    }
+
+    let isCancelled = false;
+    let cleanupScene: (() => void) | null = null;
+    let frameId: number | null = null;
+    const frameState = window as Window & { __resolveHubHero3DFrames?: number };
+    frameState.__resolveHubHero3DFrames = 0;
+
+    async function buildScene() {
+      const THREE = await import("three");
+
+      if (isCancelled || !mount) {
+        return;
+      }
+
+      const container = mount;
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+      camera.position.set(0, 0.2, 8);
+
+      const renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        preserveDrawingBuffer: true
+      });
+      renderer.setClearColor(0x000000, 0);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.domElement.className = "h-full w-full";
+      renderer.domElement.setAttribute("aria-hidden", "true");
+      container.appendChild(renderer.domElement);
+
+      const group = new THREE.Group();
+      scene.add(group);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 1.35));
+
+      const keyLight = new THREE.DirectionalLight(0x99f6e4, 2.2);
+      keyLight.position.set(3, 4, 5);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.PointLight(0x60a5fa, 1.4, 12);
+      fillLight.position.set(-4, -2, 4);
+      scene.add(fillLight);
+
+      const core = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(1.32, 2),
+        new THREE.MeshPhysicalMaterial({
+          color: 0x0f766e,
+          emissive: 0x052e2b,
+          emissiveIntensity: 0.24,
+          metalness: 0.18,
+          opacity: 0.92,
+          roughness: 0.28,
+          transparent: true
+        })
+      );
+      group.add(core);
+
+      const wireframe = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(1.54, 2),
+        new THREE.MeshBasicMaterial({
+          color: 0x14b8a6,
+          opacity: 0.22,
+          transparent: true,
+          wireframe: true
+        })
+      );
+      group.add(wireframe);
+
+      const ringMaterial = new THREE.MeshBasicMaterial({
+        color: 0x2563eb,
+        opacity: 0.36,
+        transparent: true,
+        wireframe: true
+      });
+
+      const firstRing = new THREE.Mesh(new THREE.TorusGeometry(2.15, 0.015, 12, 96), ringMaterial);
+      firstRing.rotation.x = Math.PI / 2.7;
+      group.add(firstRing);
+
+      const secondRing = new THREE.Mesh(new THREE.TorusGeometry(2.75, 0.012, 12, 96), ringMaterial.clone());
+      secondRing.rotation.y = Math.PI / 2.5;
+      group.add(secondRing);
+
+      const nodeGeometry = new THREE.BoxGeometry(0.58, 0.36, 0.1);
+      const lineMaterial = new THREE.LineBasicMaterial({
+        color: 0x94a3b8,
+        opacity: 0.28,
+        transparent: true
+      });
+      const nodeData = [
+        { color: 0xef4444, position: new THREE.Vector3(-2.95, 1.32, 0.35) },
+        { color: 0xf59e0b, position: new THREE.Vector3(2.72, 1.03, -0.15) },
+        { color: 0x14b8a6, position: new THREE.Vector3(-2.38, -1.48, -0.25) },
+        { color: 0x2563eb, position: new THREE.Vector3(2.42, -1.42, 0.28) },
+        { color: 0x0f766e, position: new THREE.Vector3(0.08, 2.2, -0.38) }
+      ];
+      const nodeMeshes = nodeData.map((node) => {
+        const card = new THREE.Mesh(
+          nodeGeometry,
+          new THREE.MeshStandardMaterial({
+            color: node.color,
+            emissive: node.color,
+            emissiveIntensity: 0.08,
+            metalness: 0.12,
+            roughness: 0.34
+          })
+        );
+        card.position.copy(node.position);
+        card.lookAt(new THREE.Vector3(0, 0, 0));
+        group.add(card);
+
+        const edge = new THREE.LineSegments(
+          new THREE.EdgesGeometry(nodeGeometry),
+          new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true })
+        );
+        card.add(edge);
+
+        const connector = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), node.position]),
+          lineMaterial.clone()
+        );
+        group.add(connector);
+
+        return card;
+      });
+
+      const pointer = { x: 0, y: 0 };
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function resizeScene() {
+        const width = Math.max(1, container.clientWidth);
+        const height = Math.max(1, container.clientHeight);
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        group.scale.setScalar(width < 520 ? (height < 210 ? 0.62 : 0.76) : 1);
+      }
+
+      function handlePointerMove(event: PointerEvent) {
+        pointer.x = (event.clientX / window.innerWidth - 0.5) * 2;
+        pointer.y = (event.clientY / window.innerHeight - 0.5) * 2;
+      }
+
+      const resizeObserver = new ResizeObserver(resizeScene);
+      resizeObserver.observe(container);
+      window.addEventListener("pointermove", handlePointerMove);
+      resizeScene();
+
+      const clock = new THREE.Clock();
+
+      function renderFrame() {
+        const elapsed = clock.getElapsedTime();
+        group.rotation.y = elapsed * 0.2 + pointer.x * 0.12;
+        group.rotation.x = Math.sin(elapsed * 0.38) * 0.07 - pointer.y * 0.1;
+        core.rotation.x = elapsed * 0.18;
+        core.rotation.y = elapsed * 0.28;
+        wireframe.rotation.y = -elapsed * 0.16;
+        firstRing.rotation.z = elapsed * 0.18;
+        secondRing.rotation.x = elapsed * 0.14;
+
+        nodeMeshes.forEach((node, index) => {
+          const basePosition = nodeData[index].position;
+          node.position.y = basePosition.y + Math.sin(elapsed * 1.1 + index) * 0.08;
+          node.rotation.z = Math.sin(elapsed * 0.7 + index) * 0.04;
+        });
+
+        renderer.render(scene, camera);
+        frameState.__resolveHubHero3DFrames = (frameState.__resolveHubHero3DFrames ?? 0) + 1;
+        container.dataset.frames = String(frameState.__resolveHubHero3DFrames);
+      }
+
+      function animate() {
+        renderFrame();
+        frameId = window.requestAnimationFrame(animate);
+      }
+
+      if (prefersReducedMotion) {
+        renderFrame();
+      } else {
+        animate();
+      }
+
+      cleanupScene = () => {
+        if (frameId) {
+          window.cancelAnimationFrame(frameId);
+        }
+
+        resizeObserver.disconnect();
+        window.removeEventListener("pointermove", handlePointerMove);
+        scene.traverse((object) => {
+          const disposable = object as unknown as {
+            geometry?: { dispose: () => void };
+            material?: { dispose: () => void } | Array<{ dispose: () => void }>;
+          };
+
+          disposable.geometry?.dispose();
+
+          if (Array.isArray(disposable.material)) {
+            disposable.material.forEach((material) => material.dispose());
+          } else {
+            disposable.material?.dispose();
+          }
+        });
+        renderer.dispose();
+        renderer.domElement.remove();
+      };
+    }
+
+    void buildScene();
+
+    return () => {
+      isCancelled = true;
+      cleanupScene?.();
+    };
+  }, []);
+
+  return (
+    <div
+      aria-hidden="true"
+      className={
+        className ??
+        "hero-motion-scene pointer-events-none relative h-64 w-full opacity-95 sm:h-72"
+      }
+      data-testid={testId}
+      ref={sceneRef}
+    />
+  );
+}
+
 function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
   const [lead, setLead] = useState({
     email: "",
@@ -1270,7 +1515,7 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
             </span>
             <span className="min-w-0">
               <span className="block text-lg font-bold tracking-normal text-slate-950">ResolveHub</span>
-              <span className="block text-xs font-semibold text-slate-500">Complaint management software</span>
+              <span className="hidden text-xs font-semibold text-slate-500 sm:block">Complaint management software</span>
             </span>
           </button>
 
@@ -1308,14 +1553,17 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:px-8 lg:pb-20 lg:pt-16" id="home">
-        <div className="min-w-0">
+      <section
+        className="relative mx-auto grid max-w-7xl gap-10 overflow-hidden px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:px-8 lg:pb-20 lg:pt-16"
+        id="home"
+      >
+        <div className="relative z-10 min-w-0">
           <div className="inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-1.5 text-sm font-bold text-teal-800">
             <BadgeCheck className="h-4 w-4" />
             Built for real facility teams
           </div>
           <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-normal text-slate-950 sm:text-5xl lg:text-6xl">
-            Facility complaint management software
+            Facility complaint management <span className="block sm:inline">software</span>
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
             ResolveHub helps hostels, colleges, apartments, and offices collect complaints, assign staff, monitor SLA risk, and prove resolution from one clean workspace.
@@ -1340,6 +1588,13 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
             </button>
           </div>
 
+          <div className="mt-8 lg:hidden">
+            <HeroMotionScene
+              className="hero-motion-scene pointer-events-none relative h-44 w-full opacity-95"
+              testId="hero-3d-scene-mobile"
+            />
+          </div>
+
           <div className="mt-10 grid max-w-2xl grid-cols-3 gap-4 border-y border-slate-200 py-5">
             <div>
               <p className="text-2xl font-bold text-slate-950">4x</p>
@@ -1356,48 +1611,52 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
           </div>
         </div>
 
-        <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-normal text-slate-500">Live operations</p>
-                <h2 className="mt-1 text-lg font-bold text-slate-950">Priority Queue</h2>
-              </div>
-              <span className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">2 SLA risks</span>
-            </div>
+        <div className="relative z-10 min-w-0">
+          <HeroMotionScene className="hero-motion-scene pointer-events-none hidden h-64 w-full opacity-95 sm:h-72 lg:block" />
 
-            <div className="mt-4 space-y-3">
-              {initialComplaints.slice(0, 3).map((complaint) => (
-                <div className="rounded-lg border border-slate-100 p-3" key={complaint.id}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-400">{complaint.id}</p>
-                      <p className="mt-1 text-sm font-bold leading-5 text-slate-950">{complaint.title}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{complaint.assignee}</p>
-                    </div>
-                    <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold ${priorityStyles[complaint.priority]}`}>
-                      {complaint.priority}
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-teal-500" style={{ width: `${complaint.progress}%` }} />
-                  </div>
+          <div className="motion-card-3d mt-4 min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-normal text-slate-500">Live operations</p>
+                  <h2 className="mt-1 text-lg font-bold text-slate-950">Priority Queue</h2>
                 </div>
-              ))}
-            </div>
+                <span className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">2 SLA risks</span>
+              </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs font-bold text-slate-500">Open</p>
-                <p className="mt-1 text-xl font-bold text-slate-950">3</p>
+              <div className="mt-4 space-y-3">
+                {initialComplaints.slice(0, 3).map((complaint) => (
+                  <div className="rounded-lg border border-slate-100 p-3" key={complaint.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-400">{complaint.id}</p>
+                        <p className="mt-1 text-sm font-bold leading-5 text-slate-950">{complaint.title}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{complaint.assignee}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold ${priorityStyles[complaint.priority]}`}>
+                        {complaint.priority}
+                      </span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-teal-500" style={{ width: `${complaint.progress}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs font-bold text-slate-500">Working</p>
-                <p className="mt-1 text-xl font-bold text-slate-950">1</p>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <p className="text-xs font-bold text-slate-500">Closed</p>
-                <p className="mt-1 text-xl font-bold text-slate-950">1</p>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-bold text-slate-500">Open</p>
+                  <p className="mt-1 text-xl font-bold text-slate-950">3</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-bold text-slate-500">Working</p>
+                  <p className="mt-1 text-xl font-bold text-slate-950">1</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-bold text-slate-500">Closed</p>
+                  <p className="mt-1 text-xl font-bold text-slate-950">1</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1414,7 +1673,7 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {solutionCards.map((solution) => (
-              <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" key={solution.title}>
+              <article className="motion-card-3d rounded-lg border border-slate-200 bg-white p-5 shadow-sm" key={solution.title}>
                 <Building2 className="h-6 w-6 text-teal-700" />
                 <h3 className="mt-4 text-lg font-bold text-slate-950">{solution.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{solution.copy}</p>
@@ -1442,7 +1701,7 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {salesFeatures.map((feature) => (
-              <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" key={feature.title}>
+              <article className="motion-card-3d rounded-lg border border-slate-200 bg-white p-5 shadow-sm" key={feature.title}>
                 <div className="grid h-11 w-11 place-items-center rounded-lg bg-teal-50 text-teal-700">{feature.icon}</div>
                 <h3 className="mt-4 text-base font-bold text-slate-950">{feature.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{feature.copy}</p>
@@ -1472,7 +1731,7 @@ function MarketingWebsite({ onOpenProduct }: { onOpenProduct: () => void }) {
 
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {pricingPlans.map((plan) => (
-              <article className="rounded-lg border border-white/10 bg-white/5 p-5" key={plan.name}>
+              <article className="motion-card-3d rounded-lg border border-white/10 bg-white/5 p-5" key={plan.name}>
                 <h3 className="text-lg font-bold">{plan.name}</h3>
                 <p className="mt-3 text-3xl font-bold">{plan.price}</p>
                 <p className="mt-3 text-sm leading-6 text-slate-300">{plan.copy}</p>
