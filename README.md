@@ -63,6 +63,16 @@ npm run dev
 
 4. Open `http://localhost:3000`.
 
+## Live Website
+
+After GitHub Pages finishes deploying, share this link:
+
+```text
+https://saiteja3915-svg.github.io/ResolveHub/
+```
+
+The repository is configured to deploy automatically whenever changes are pushed to `main`.
+
 ## Scripts
 
 ```bash
