@@ -11,7 +11,13 @@ const nextConfig = {
   basePath: isGithubPages ? "/ResolveHub" : undefined,
   devIndicators: false,
   images: {
-    unoptimized: true
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**"
+      }
+    ]
   },
   output: isGithubPages ? "export" : undefined,
   reactStrictMode: true,

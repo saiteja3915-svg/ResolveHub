@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,9 +15,14 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ResolveHub | Facility Complaint Management Software",
+  title: "FrameWala Studio | Custom Photo Frames in India",
   description:
-    "A customer-ready complaint management platform for hostels, colleges, apartments, and offices."
+    "Shop custom photo frames, gallery wall sets, photo printing, and gifting frames with pan-India delivery."
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1
 };
 
 export default function RootLayout({

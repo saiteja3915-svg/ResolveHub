@@ -1,5 +1,5 @@
-import { SmartComplaintResolver } from "@/components/SmartComplaintResolver";
+import { PhotoFrameShop } from "@/components/PhotoFrameShop";
 
 export default function Home() {
-  return <SmartComplaintResolver />;
+  return <PhotoFrameShop />;
 }
