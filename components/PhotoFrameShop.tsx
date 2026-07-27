@@ -70,6 +70,9 @@ type OwnerMessage = {
 const OWNER_PASSWORD = "2091892";
 const SHOP_STORAGE_KEY = "framewala-shop-content-v1";
 const OWNER_SESSION_KEY = "framewala-owner-unlocked-v1";
+const CURRENT_PHONE_DISPLAY = "+91 63013 61730";
+const CURRENT_WHATSAPP_NUMBER = "916301361730";
+const OLD_DEMO_PHONE_DIGITS = new Set(["9876543210", "919876543210"]);
 
 const defaultProductImage =
   "https://images.pexels.com/photos/7956938/pexels-photo-7956938.jpeg?auto=compress&cs=tinysrgb&w=900";
@@ -80,8 +83,8 @@ const defaultShop: ShopContent = {
   heroBadge: "Premium handmade frames, photo printing, and pan-India delivery",
   heroCopy:
     "Turn family photos, wedding memories, certificates, and art prints into ready-to-hang frames with custom sizes, Indian wood finishes, premium mat boards, and careful courier packing.",
-  phone: "+91 98765 43210",
-  whatsappNumber: "919876543210",
+  phone: CURRENT_PHONE_DISPLAY,
+  whatsappNumber: CURRENT_WHATSAPP_NUMBER,
   email: "orders@framewala.in",
   address: "Indiranagar, Bengaluru. Local pickup and same-city courier available.",
   deliveryNote: "Shipping to metro cities, tier-2 cities, and bulk business addresses.",
@@ -203,6 +206,11 @@ function mergeShopContent(content: unknown): ShopContent {
   return {
     ...defaultShop,
     ...partial,
+    phone: partial.phone && !OLD_DEMO_PHONE_DIGITS.has(getPhoneDigits(partial.phone)) ? partial.phone : defaultShop.phone,
+    whatsappNumber:
+      partial.whatsappNumber && !OLD_DEMO_PHONE_DIGITS.has(getPhoneDigits(partial.whatsappNumber))
+        ? partial.whatsappNumber
+        : defaultShop.whatsappNumber,
     finishes: Array.isArray(partial.finishes) && partial.finishes.length > 0 ? partial.finishes : defaultShop.finishes,
     products,
     benefitBullets:
