@@ -639,7 +639,7 @@ function OwnerEditor({
                   type="button"
                 >
                   <PlusCircle className="h-5 w-5" />
-                  Add Frame
+                  Add More Frames
                 </button>
               </div>
 
@@ -1166,6 +1166,7 @@ export function PhotoFrameShop() {
         }
       ]
     }));
+    setMessage({ text: "New frame card added. Edit its name, price, image, and description, then save.", tone: "info" });
   }
 
   function removeProduct(id: string) {
