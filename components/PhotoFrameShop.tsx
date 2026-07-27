@@ -70,7 +70,7 @@ type OwnerMessage = {
 const OWNER_PASSWORD = "2091892";
 const SHOP_STORAGE_KEY = "framewala-shop-content-v1";
 const OWNER_SESSION_KEY = "framewala-owner-unlocked-v1";
-const CURRENT_PHONE_DISPLAY = "+91 63013 61730";
+const CURRENT_PHONE_DISPLAY = "+91 6301361730";
 const CURRENT_WHATSAPP_NUMBER = "916301361730";
 const OLD_DEMO_PHONE_DIGITS = new Set(["9876543210", "919876543210"]);
 
@@ -207,10 +207,7 @@ function mergeShopContent(content: unknown): ShopContent {
     ...defaultShop,
     ...partial,
     phone: partial.phone && !OLD_DEMO_PHONE_DIGITS.has(getPhoneDigits(partial.phone)) ? partial.phone : defaultShop.phone,
-    whatsappNumber:
-      partial.whatsappNumber && !OLD_DEMO_PHONE_DIGITS.has(getPhoneDigits(partial.whatsappNumber))
-        ? partial.whatsappNumber
-        : defaultShop.whatsappNumber,
+    whatsappNumber: normalizeWhatsAppNumber(partial.whatsappNumber || partial.phone || defaultShop.whatsappNumber),
     finishes: Array.isArray(partial.finishes) && partial.finishes.length > 0 ? partial.finishes : defaultShop.finishes,
     products,
     benefitBullets:
@@ -241,8 +238,26 @@ function getPhoneDigits(value: string) {
   return value.replace(/[^\d]/g, "");
 }
 
+function normalizeWhatsAppNumber(value: string) {
+  const digits = getPhoneDigits(value);
+
+  if (!digits || OLD_DEMO_PHONE_DIGITS.has(digits)) {
+    return CURRENT_WHATSAPP_NUMBER;
+  }
+
+  if (digits.length === 10) {
+    return `91${digits}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith("0")) {
+    return `91${digits.slice(1)}`;
+  }
+
+  return digits;
+}
+
 function getWhatsAppHref(shop: ShopContent, message: string) {
-  const number = getPhoneDigits(shop.whatsappNumber || shop.phone);
+  const number = normalizeWhatsAppNumber(shop.whatsappNumber || shop.phone);
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
@@ -1055,6 +1070,10 @@ export function PhotoFrameShop() {
       try {
         const savedShop = window.localStorage.getItem(SHOP_STORAGE_KEY);
         const nextShop = savedShop ? mergeShopContent(JSON.parse(savedShop)) : defaultShop;
+
+        if (savedShop) {
+          window.localStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(nextShop));
+        }
 
         setShop(nextShop);
         setDraft(nextShop);
